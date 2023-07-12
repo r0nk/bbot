@@ -99,10 +99,19 @@ class paramminer_headers(BaseModule):
     async def do_mining(self, wl, url, batch_size, compare_helper):
         results = set()
         abort_threshold = 25
+        failure_threshold = 25
         try:
             for group in self.helpers.grouper(wl, batch_size):
                 async for result, reasons, reflection in self.binary_search(compare_helper, url, group):
                     results.add((result, ",".join(reasons), reflection))
+                    if(result and reasons=="403"):
+                        failure_threshold-=1
+                        if(failure_threshold<=0):
+                            self.warning(
+                                f"Failure threshold ({failure_threshold}) reached, too many failed requests"
+                            )
+                            results.clear()
+                            assert False
                     if len(results) >= abort_threshold:
                         self.warning(
                             f"Abort threshold ({abort_threshold}) reached, too many {self.compare_mode}s found for url: {url}"
